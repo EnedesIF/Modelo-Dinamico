@@ -1,0 +1,42 @@
+{
+  "build_command": "pnpm run build",
+  "capabilities": [
+    "db",
+    "server",
+    "user"
+  ],
+  "dev_command": "pnpm run dev",
+  "env_vars": {
+    "DATABASE_URL": "mysql://in242Kzdw1x4YYd.root:u6S1Tw35GvbMFpFce42R@gateway03.us-east-1.prod.aws.tidbcloud.com:4000/oD6KbmdcdVu6HUvkyLwzKU?ssl={\"rejectUnauthorized\":true}",
+    "DRIZZLE_DATABASE_URL": "mysql://in242Kzdw1x4YYd.root:u6S1Tw35GvbMFpFce42R@gateway03.us-east-1.prod.aws.tidbcloud.com:4000/oD6KbmdcdVu6HUvkyLwzKU?ssl={\"rejectUnauthorized\":true}",
+    "MANUS_WEBDEV_PROJECT_ID": "oD6KbmdcdVu6HUvkyLwzKU"
+  },
+  "experiments": null,
+  "git_remote": {
+    "repo_url": "https://7f0548f6b28a1758d9bf7be630d36cb4.artifacts.cloudflare.net/git/prod/oD6KbmdcdVu6HUvkyLwzKU.git",
+    "expiration": "2026-08-15T17:13:04.833Z",
+    "token": "art_v2_x_c3f8ed110e1b3c58eca2164fe52b26bf902a6f5d?expires=1786813984",
+    "backend": "GIT_BACKEND_ARTIFACTS"
+  },
+  "name": "modelo-dinamico-educacional",
+  "path": "/home/ubuntu/modelo-dinamico-educacional",
+  "port": 3000,
+  "secrets": {
+    "BUILT_IN_FORGE_API_KEY": "YX2jFzUeNHpNV4cxnV3qco",
+    "BUILT_IN_FORGE_API_URL": "https://forge.manus.ai",
+    "JWT_SECRET": "2E9PFxGE8A5EXRGD5uhgQ6",
+    "OAUTH_SERVER_URL": "https://api.manus.im",
+    "OWNER_NAME": "Carla Castro",
+    "OWNER_OPEN_ID": "MrbwVMhXXUJhAhon4ZryXp",
+    "VITE_ANALYTICS_ENDPOINT": "https://manus-analytics.com",
+    "VITE_ANALYTICS_WEBSITE_ID": "2487a5b5-2df8-498d-93dc-8ca63444ceef",
+    "VITE_APP_ID": "oD6KbmdcdVu6HUvkyLwzKU",
+    "VITE_APP_LOGO": "https://files.manuscdn.com/user_upload_by_module/web_dev_logo/310419663028529000/PoMOtIuLyiIaUqXR.png",
+    "VITE_APP_TITLE": "Modelo Dinâmico Educacional",
+    "VITE_FRONTEND_FORGE_API_KEY": "RsP2uCoFQqLi9JMDonyyhm",
+    "VITE_FRONTEND_FORGE_API_URL": "https://forge.manus.ai",
+    "VITE_OAUTH_PORTAL_URL": "https://manus.im"
+  },
+  "template_id": "web-static",
+  "test_command": "pnpm test"
+}
