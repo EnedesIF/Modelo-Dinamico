@@ -33,7 +33,7 @@
 ## Preparação para documentação e Supabase
 
 - [x] Criar o índice técnico do repositório e da futura integração com o Supabase.
-- [ ] Produzir documentação detalhada, guia de Git e plano de integração em etapa posterior.
+- [x] Produzir documentação detalhada, guia de Git e plano de integração em etapa posterior.
 
 ## Redesenho do fluxo por meta
 
@@ -102,5 +102,72 @@
 
 ## Pacote de repositório Git
 
-- [ ] Criar uma cópia limpa, sem dependências, builds ou segredos.
-- [ ] Compactar e verificar o pacote para envio ao repositório remoto.
+- [x] Criar uma cópia limpa, sem dependências, builds ou segredos.
+- [x] Compactar e verificar o pacote para envio ao repositório remoto.
+
+## Orientação de implantação no Vercel
+
+- [ ] Confirmar a estrutura do repositório no Git antes da importação.
+- [ ] Configurar o projeto e o comando de build no Vercel.
+- [ ] Registrar as limitações do backend atual e as variáveis para a futura migração ao Supabase.
+
+## Correção de build externo
+
+- [ ] Confirmar a presença de `client/src/main.tsx` e demais arquivos de entrada no Git.
+- [ ] Restaurar a árvore de arquivos do projeto antes de uma nova implantação no Vercel.
+
+## Estratégia de implantação externa
+
+- [ ] Configurar build estático de demonstração no Vercel, sem o bootstrap Express atual.
+- [ ] Planejar a conversão do backend para Supabase e funções serverless antes da implantação funcional completa.
+
+## Publicação funcional externa
+
+- [ ] Criar o projeto Supabase e aplicar o esquema PostgreSQL da atividade.
+- [ ] Converter autenticação, persistência e APIs para Supabase e funções serverless.
+- [ ] Configurar as variáveis de ambiente e publicar a versão funcional no Vercel.
+- [ ] Validar professor, grupos, dashboard e privacidade no domínio externo.
+
+## Integração Supabase do domínio publicado
+
+- [ ] Criar o projeto Supabase e aplicar o esquema PostgreSQL da atividade.
+- [ ] Migrar o acesso docente, grupos e dossiês para Supabase Auth e Postgres.
+- [ ] Adaptar o backend para funções serverless no Vercel.
+- [ ] Configurar variáveis de ambiente e validar a versão persistente no domínio público.
+
+## Demonstração estática no Vercel
+
+- [ ] Publicar a interface e a rota demonstrativa sem o backend Express atual.
+- [ ] Validar o domínio público e registrar que dados persistentes dependem do Supabase.
+
+## Correção de rota estática no Vercel
+
+- [ ] Ajustar a configuração de rota e saída para eliminar o erro 404 do domínio público.
+- [ ] Reimplantar e validar a abertura da demonstração no Vercel.
+
+## Correção de entrega estática no Vercel
+
+- [ ] Simplificar a configuração externa para servir `index.html` na página inicial.
+- [ ] Confirmar que o domínio público deixa de retornar 404 após o redeploy.
+
+## Migração Supabase e função serverless
+
+- [x] Criar o projeto Supabase e aplicar o esquema PostgreSQL da atividade.
+- [x] Adaptar localmente autenticação docente, persistência e API de colaboração para Supabase e Vercel.
+- [x] Validar tipagem, build estático, função serverless e testes da migração local.
+- [ ] Atualizar o repositório Git externo com o pacote Supabase/Vercel.
+- [ ] Cadastrar a chave `SUPABASE_SERVICE_ROLE_KEY` protegida no Vercel.
+- [ ] Fazer redeploy e validar professor, grupos, dossiês e dashboard no domínio público.
+
+## Correção do acesso docente
+
+- [x] Diagnosticar por que o botão “Entrar como professor” não inicia a autenticação.
+- [x] Exibir uma orientação acionável quando as credenciais Supabase ainda não estiverem disponíveis no ambiente.
+- [ ] Validar o botão de entrada, a geração do magic link e o retorno à aplicação.
+
+## Login docente por senha
+
+- [x] Substituir o fluxo de magic link por autenticação docente com e-mail e senha.
+- [ ] Criar uma tela de primeiro acesso para cadastrar a conta da professora com senha.
+- [x] Preservar a autorização da professora responsável e os fluxos públicos dos grupos.
+- [ ] Validar login, criação de conta, logout e persistência da sessão no Supabase.
