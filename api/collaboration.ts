@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
-import { calculateQuality, createEmptyWorkspace, normalizeWorkspace } from "../shared/quality";
-import { projectGroupProgress } from "../shared/groupProgress";
-import { assertSupabaseVariables } from "../shared/supabaseConfig";
+import { calculateQuality, createEmptyWorkspace, normalizeWorkspace } from "./quality.js";
+import { projectGroupProgress } from "./groupProgress.js";
+import { assertSupabaseVariables } from "./supabaseConfig.js";
 
 type RequestLike = { method?: string; query?: Record<string, string | string[] | undefined>; headers: Record<string, string | string[] | undefined>; body?: unknown };
 type ResponseLike = { status: (code: number) => ResponseLike; json: (payload: unknown) => void; setHeader: (name: string, value: string) => void };
