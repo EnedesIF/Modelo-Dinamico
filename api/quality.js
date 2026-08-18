@@ -25,28 +25,32 @@ const countFilled = values => values.filter(isFilled).length;
 function normalizeMetaPlan(value) {
   const raw = recordOf(value);
   const template = createEmptyMetaPlan();
-  const hypotheses = arrayOf(raw.hypotheses).map(item => {
+  const hypotheses = arrayOf(raw.hypotheses).slice(0, 3).map(item => {
     const row = recordOf(item);
     return { statement: stringOf(row.statement), supportingSignal: stringOf(row.supportingSignal), weakeningSignal: stringOf(row.weakeningSignal) };
   });
-  const factors = arrayOf(raw.factors).map(item => {
+  while (hypotheses.length < 3) hypotheses.push(blankHypothesis());
+  const factors = arrayOf(raw.factors).slice(0, 4).map(item => {
     const row = recordOf(item);
-    const kiqs = arrayOf(row.kiqs).map(kiq => {
+    const kiqs = arrayOf(row.kiqs).slice(0, 4).map(kiq => {
       const question = recordOf(kiq);
       return { question: stringOf(question.question), source: stringOf(question.source), method: stringOf(question.method), evidenceMinimum: stringOf(question.evidenceMinimum), decisionSignal: stringOf(question.decisionSignal) };
     });
-    return { title: stringOf(row.title), rationale: stringOf(row.rationale), indicator: stringOf(row.indicator), hypothesisLink: stringOf(row.hypothesisLink), interpretationRisk: stringOf(row.interpretationRisk), kiqs: kiqs.length ? kiqs.slice(0, 4) : [blankKiq(), blankKiq(), blankKiq(), blankKiq()] };
+    while (kiqs.length < 4) kiqs.push(blankKiq());
+    return { title: stringOf(row.title), rationale: stringOf(row.rationale), indicator: stringOf(row.indicator), hypothesisLink: stringOf(row.hypothesisLink), interpretationRisk: stringOf(row.interpretationRisk), kiqs };
   });
-  const evidence = arrayOf(raw.evidence).map(item => {
+  while (factors.length < 4) factors.push(blankFactor());
+  const evidence = arrayOf(raw.evidence).slice(0, 3).map(item => {
     const row = recordOf(item);
     return { evidence: stringOf(row.evidence), source: stringOf(row.source), date: stringOf(row.date), relevance: stringOf(row.relevance), limitation: stringOf(row.limitation), inference: stringOf(row.inference) };
   });
+  while (evidence.length < 3) evidence.push(blankEvidence());
   const memo = recordOf(raw.memo);
   return {
     kit: stringOf(raw.kit),
-    hypotheses: hypotheses.length ? hypotheses.slice(0, 3) : template.hypotheses,
-    factors: factors.length ? factors.slice(0, 4) : template.factors,
-    evidence: evidence.length ? evidence.slice(0, 3) : template.evidence,
+    hypotheses: hypotheses.length ? hypotheses : template.hypotheses,
+    factors: factors.length ? factors : template.factors,
+    evidence: evidence.length ? evidence : template.evidence,
     memo: { recommendation: stringOf(memo.recommendation), rationale: stringOf(memo.rationale), rejectedAlternatives: stringOf(memo.rejectedAlternatives), residualRisk: stringOf(memo.residualRisk), monitoringPlan: stringOf(memo.monitoringPlan) },
   };
 }
