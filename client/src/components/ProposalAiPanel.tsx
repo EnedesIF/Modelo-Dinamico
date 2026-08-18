@@ -1,0 +1,22 @@
+import { useState } from "react";
+import { AlertTriangle, BrainCircuit, Loader2, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+export function ProposalAiPanel({ accessCode, initialFeedback, onFeedback }: { accessCode: string; initialFeedback?: any; onFeedback: (feedback: any) => void }) {
+  const [feedback, setFeedback] = useState<any>(initialFeedback ?? null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const analyze = async () => {
+    setLoading(true); setError("");
+    try {
+      const response = await fetch("/api/proposal-analysis", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accessCode }) });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error ?? "Não foi possível analisar as propostas agora.");
+      setFeedback(body.data.feedback); onFeedback(body.data.feedback);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Não foi possível analisar as propostas agora."); }
+    finally { setLoading(false); }
+  };
+  return <section className="overflow-hidden rounded-[1.6rem] border border-[#6D5BD0]/20 bg-[#FBFAFF] shadow-[0_16px_40px_rgba(83,68,157,.08)]"><div className="flex flex-wrap items-start justify-between gap-4 bg-gradient-to-r from-[#2C285E] via-[#4B3C8F] to-[#0C4A5A] p-6 text-white"><div><div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[.14em] text-[#F2D4FF]"><Sparkles className="size-3" />leitura assistida</div><h3 className="mt-3 font-display text-3xl font-semibold">Analise as propostas com IA</h3><p className="mt-2 max-w-2xl text-sm leading-6 text-[#E6E0FF]">Receba uma leitura formativa das quatro metas: forças, lacunas, contradições e próximos movimentos antes do comitê.</p></div><Button onClick={() => void analyze()} disabled={loading} className="bg-[#F5D06F] text-[#302858] hover:bg-[#FFE39A]">{loading ? <Loader2 className="mr-2 size-4 animate-spin" /> : <BrainCircuit className="mr-2 size-4" />}{loading ? "Analisando..." : "Gerar diagnóstico"}</Button></div><div className="p-5 sm:p-7">{!feedback && !loading && <p className="rounded-xl border border-dashed border-[#6D5BD0]/25 bg-white p-5 text-sm leading-6 text-[#5E5A80]">A análise não dá nota nem decide pelo grupo. Ela compara as propostas com as evidências já registradas e aponta o que merece revisão.</p>}{error && <p className="rounded-xl border border-[#A44545]/20 bg-[#FCE9E7] p-4 text-sm font-semibold text-[#9A4F4B]">{error}</p>}{feedback && <div className="space-y-5"><div className="rounded-2xl bg-[#F1EEFF] p-5"><p className="eyebrow text-[#594899]">Diagnóstico</p><h4 className="mt-1 font-display text-2xl font-semibold text-[#302858]">{feedback.headline}</h4><p className="mt-3 text-sm leading-6 text-[#514B76]">{feedback.executiveRead}</p></div><div className="grid gap-4 lg:grid-cols-3"><FeedbackList title="Forças" items={feedback.strengths} tone="border-[#1D9A70]/25 bg-[#E6F2EC] text-[#176149]" /><FeedbackList title="Lacunas" items={feedback.gaps} tone="border-[#E8B04A]/35 bg-[#FFF6DA] text-[#8B6416]" /><FeedbackList title="Contradições" items={feedback.contradictions} tone="border-[#A44545]/20 bg-[#FCE9E7] text-[#9A4F4B]" /></div><div className="rounded-2xl border border-[#183135]/10 bg-white p-5"><p className="eyebrow">Próximos movimentos</p><ol className="mt-3 space-y-2 text-sm leading-6 text-[#31595C]">{(feedback.nextMoves ?? []).map((item: string, index: number) => <li key={item} className="flex gap-3"><span className="grid size-6 shrink-0 place-items-center rounded-full bg-[#0C4A5A] text-xs font-bold text-white">{index + 1}</span>{item}</li>)}</ol></div><p className="flex items-start gap-2 text-xs leading-5 text-[#668083]"><AlertTriangle className="mt-0.5 size-4 shrink-0 text-[#8B6416]" />{feedback.caution ?? "Leitura formativa: confirme fontes, cálculos e premissas antes da decisão."}</p></div>}</div></section>;
+}
+
+function FeedbackList({ title, items, tone }: { title: string; items?: string[]; tone: string }) { return <div className={`rounded-2xl border p-4 ${tone}`}><p className="text-[10px] font-bold uppercase tracking-[.14em]">{title}</p><ul className="mt-3 space-y-2 text-sm leading-5">{(items?.length ? items : ["Ainda não há material suficiente para esta leitura."]).map(item => <li key={item}>• {item}</li>)}</ul></div>; }
