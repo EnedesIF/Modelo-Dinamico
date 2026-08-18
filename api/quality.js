@@ -3,6 +3,13 @@ const blankFactor = () => ({ title: "", rationale: "", indicator: "", hypothesis
 const blankHypothesis = () => ({ statement: "", supportingSignal: "", weakeningSignal: "" });
 const blankEvidence = () => ({ evidence: "", source: "", date: "", relevance: "", limitation: "", inference: "" });
 const blankMemo = () => ({ recommendation: "", rationale: "", rejectedAlternatives: "", residualRisk: "", monitoringPlan: "" });
+const blankScenario = () => ({ price: "", cost: "", interest: "", absorption: "", narrative: "" });
+const blankRealEstate = () => ({
+  thesis: { assetType: "", segment: "", audience: "", location: "", investmentDecision: "" },
+  location: { demand: "", supply: "", mobility: "", infrastructure: "", income: "", regulatoryRisk: "" },
+  feasibility: { vgv: "", totalCost: "", margin: "", salesVelocity: "", funding: "", timeline: "" },
+  scenarios: { base: blankScenario(), optimistic: blankScenario(), stress: blankScenario() },
+});
 
 export const createEmptyMetaPlan = () => ({
   hypotheses: [blankHypothesis(), blankHypothesis(), blankHypothesis()],
@@ -13,7 +20,7 @@ export const createEmptyMetaPlan = () => ({
 });
 
 export function createEmptyWorkspace() {
-  return { metaPlans: [createEmptyMetaPlan(), createEmptyMetaPlan(), createEmptyMetaPlan(), createEmptyMetaPlan()] };
+  return { metaPlans: [createEmptyMetaPlan(), createEmptyMetaPlan(), createEmptyMetaPlan(), createEmptyMetaPlan()], realEstate: blankRealEstate() };
 }
 
 const recordOf = value => (value && typeof value === "object" ? value : {});
@@ -55,15 +62,34 @@ function normalizeMetaPlan(value) {
   };
 }
 
+function normalizeScenario(value) {
+  const row = recordOf(value);
+  return { price: stringOf(row.price), cost: stringOf(row.cost), interest: stringOf(row.interest), absorption: stringOf(row.absorption), narrative: stringOf(row.narrative) };
+}
+
+function normalizeRealEstate(value) {
+  const raw = recordOf(value);
+  const thesis = recordOf(raw.thesis);
+  const location = recordOf(raw.location);
+  const feasibility = recordOf(raw.feasibility);
+  const scenarios = recordOf(raw.scenarios);
+  return {
+    thesis: { assetType: stringOf(thesis.assetType), segment: stringOf(thesis.segment), audience: stringOf(thesis.audience), location: stringOf(thesis.location), investmentDecision: stringOf(thesis.investmentDecision) },
+    location: { demand: stringOf(location.demand), supply: stringOf(location.supply), mobility: stringOf(location.mobility), infrastructure: stringOf(location.infrastructure), income: stringOf(location.income), regulatoryRisk: stringOf(location.regulatoryRisk) },
+    feasibility: { vgv: stringOf(feasibility.vgv), totalCost: stringOf(feasibility.totalCost), margin: stringOf(feasibility.margin), salesVelocity: stringOf(feasibility.salesVelocity), funding: stringOf(feasibility.funding), timeline: stringOf(feasibility.timeline) },
+    scenarios: { base: normalizeScenario(scenarios.base), optimistic: normalizeScenario(scenarios.optimistic), stress: normalizeScenario(scenarios.stress) },
+  };
+}
+
 export function normalizeWorkspace(value) {
   const raw = recordOf(value);
   const plans = arrayOf(raw.metaPlans);
   if (plans.length) {
     const normalized = plans.slice(0, 4).map(normalizeMetaPlan);
     while (normalized.length < 4) normalized.push(createEmptyMetaPlan());
-    return { metaPlans: normalized };
+    return { metaPlans: normalized, realEstate: normalizeRealEstate(raw.realEstate) };
   }
-  return { metaPlans: [normalizeMetaPlan(raw), createEmptyMetaPlan(), createEmptyMetaPlan(), createEmptyMetaPlan()] };
+  return { metaPlans: [normalizeMetaPlan(raw), createEmptyMetaPlan(), createEmptyMetaPlan(), createEmptyMetaPlan()], realEstate: normalizeRealEstate(raw.realEstate) };
 }
 
 export function parseWorkspaceJson(value) {
@@ -98,6 +124,27 @@ function calculateMetaQuality(plan, metaIndex) {
   return { metaIndex, score, level, progress, dimensions, strengths: dimensions.filter(item => item.score / item.max >= 0.75).map(item => item.label), priorities: dimensions.filter(item => item.score / item.max < 0.75).map(item => item.label), indicators };
 }
 
+function numericValue(value) {
+  const parsed = Number.parseFloat(String(value).replace(",", "."));
+  return Number.isFinite(parsed) ? Math.max(0, Math.min(5, parsed)) : 0;
+}
+
+function calculateRealEstate(realEstate) {
+  const thesisFields = Object.values(realEstate.thesis);
+  const feasibilityFields = Object.values(realEstate.feasibility);
+  const locationValues = Object.values(realEstate.location).map(numericValue);
+  const scenarioFields = Object.values(realEstate.scenarios).flatMap(scenario => Object.values(scenario));
+  const thesisScore = Math.round((countFilled(thesisFields) / thesisFields.length) * 100);
+  const locationScore = Math.round((locationValues.reduce((sum, value) => sum + value, 0) / (locationValues.length * 5)) * 100);
+  const feasibilityScore = Math.round((countFilled(feasibilityFields) / feasibilityFields.length) * 100);
+  const scenarioScore = Math.round((countFilled(scenarioFields) / scenarioFields.length) * 100);
+  const regulatoryRisk = numericValue(realEstate.location.regulatoryRisk);
+  const score = Math.round(thesisScore * .2 + locationScore * .25 + feasibilityScore * .3 + scenarioScore * .25);
+  const recommendation = score >= 75 && regulatoryRisk <= 3 ? "Investir" : score >= 50 ? "Ajustar tese" : "Não investir";
+  const level = score >= 80 ? "Tese robusta" : score >= 60 ? "Tese promissora" : score >= 35 ? "Tese em revisão" : "Tese inicial";
+  return { score, level, recommendation, locationScore, feasibilityScore, scenarioScore, thesisScore, regulatoryRisk };
+}
+
 export function calculateQuality(input) {
   const workspace = normalizeWorkspace(input);
   const metaReports = workspace.metaPlans.map(calculateMetaQuality);
@@ -122,5 +169,6 @@ export function calculateQuality(input) {
     memoFieldsComplete: total.memoFieldsComplete + report.indicators.memoFieldsComplete,
     memoFieldsTotal: total.memoFieldsTotal + report.indicators.memoFieldsTotal,
   }), { kitCompleted: 0, hypothesesComplete: 0, hypothesesTotal: 0, fcsComplete: 0, fcsTotal: 0, kiqsComplete: 0, kiqsTotal: 0, evidenceComplete: 0, evidenceTotal: 0, distinctSources: 0, memoFieldsComplete: 0, memoFieldsTotal: 0 });
-  return { score, level, progress, dimensions, strengths: dimensions.filter(item => item.score / item.max >= 0.75).map(item => item.label), priorities: dimensions.filter(item => item.score / item.max < 0.75).map(item => item.label), metaReports, analysis };
+  const realEstate = calculateRealEstate(workspace.realEstate);
+  return { score, level, progress, dimensions, strengths: dimensions.filter(item => item.score / item.max >= 0.75).map(item => item.label), priorities: dimensions.filter(item => item.score / item.max < 0.75).map(item => item.label), metaReports, analysis, realEstate };
 }
