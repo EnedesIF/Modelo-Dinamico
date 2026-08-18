@@ -5,6 +5,7 @@ const blankEvidence = () => ({ evidence: "", source: "", date: "", relevance: ""
 const blankMemo = () => ({ recommendation: "", rationale: "", rejectedAlternatives: "", residualRisk: "", monitoringPlan: "" });
 const blankScenario = () => ({ price: "", cost: "", interest: "", absorption: "", narrative: "" });
 const blankRealEstate = () => ({
+  synthesis: { committeeDecision: "", executionSequence: "", capitalAllocation: "", sharedTradeoffs: "", successConditions: "" },
   thesis: { assetType: "", segment: "", audience: "", location: "", investmentDecision: "" },
   location: { demand: "", supply: "", mobility: "", infrastructure: "", income: "", regulatoryRisk: "" },
   feasibility: { vgv: "", totalCost: "", margin: "", salesVelocity: "", funding: "", timeline: "" },
@@ -69,11 +70,13 @@ function normalizeScenario(value) {
 
 function normalizeRealEstate(value) {
   const raw = recordOf(value);
+  const synthesis = recordOf(raw.synthesis);
   const thesis = recordOf(raw.thesis);
   const location = recordOf(raw.location);
   const feasibility = recordOf(raw.feasibility);
   const scenarios = recordOf(raw.scenarios);
   return {
+    synthesis: { committeeDecision: stringOf(synthesis.committeeDecision), executionSequence: stringOf(synthesis.executionSequence), capitalAllocation: stringOf(synthesis.capitalAllocation), sharedTradeoffs: stringOf(synthesis.sharedTradeoffs), successConditions: stringOf(synthesis.successConditions) },
     thesis: { assetType: stringOf(thesis.assetType), segment: stringOf(thesis.segment), audience: stringOf(thesis.audience), location: stringOf(thesis.location), investmentDecision: stringOf(thesis.investmentDecision) },
     location: { demand: stringOf(location.demand), supply: stringOf(location.supply), mobility: stringOf(location.mobility), infrastructure: stringOf(location.infrastructure), income: stringOf(location.income), regulatoryRisk: stringOf(location.regulatoryRisk) },
     feasibility: { vgv: stringOf(feasibility.vgv), totalCost: stringOf(feasibility.totalCost), margin: stringOf(feasibility.margin), salesVelocity: stringOf(feasibility.salesVelocity), funding: stringOf(feasibility.funding), timeline: stringOf(feasibility.timeline) },
@@ -129,20 +132,39 @@ function numericValue(value) {
   return Number.isFinite(parsed) ? Math.max(0, Math.min(5, parsed)) : 0;
 }
 
-function calculateRealEstate(realEstate) {
+function calculateRealEstate(realEstate, metaPlans, metaReports) {
+  const metaSynthesis = metaPlans.map((plan, index) => {
+    const memo = plan.memo;
+    const proposalFields = [memo.recommendation, memo.rationale, memo.rejectedAlternatives, memo.residualRisk, memo.monitoringPlan];
+    return {
+      metaIndex: index,
+      proposal: memo.recommendation,
+      rationale: memo.rationale,
+      rejectedAlternatives: memo.rejectedAlternatives,
+      residualRisk: memo.residualRisk,
+      monitoringPlan: memo.monitoringPlan,
+      proposalScore: Math.round((countFilled(proposalFields) / proposalFields.length) * 100),
+      evidenceScore: metaReports[index]?.dimensions?.find(item => item.key === "evidence")?.score ?? 0,
+      metaScore: metaReports[index]?.score ?? 0,
+      progress: metaReports[index]?.progress ?? 0,
+    };
+  });
+  const proposalScore = Math.round(metaSynthesis.reduce((sum, item) => sum + item.proposalScore, 0) / metaSynthesis.length);
+  const synthesisFields = Object.values(realEstate.synthesis);
+  const synthesisScore = Math.round((countFilled(synthesisFields) / synthesisFields.length) * 100);
   const thesisFields = Object.values(realEstate.thesis);
   const feasibilityFields = Object.values(realEstate.feasibility);
   const locationValues = Object.values(realEstate.location).map(numericValue);
   const scenarioFields = Object.values(realEstate.scenarios).flatMap(scenario => Object.values(scenario));
-  const thesisScore = Math.round((countFilled(thesisFields) / thesisFields.length) * 100);
+  const thesisScore = Math.round((proposalScore * .55) + (synthesisScore * .3) + ((countFilled(thesisFields) / thesisFields.length) * 100 * .15));
   const locationScore = Math.round((locationValues.reduce((sum, value) => sum + value, 0) / (locationValues.length * 5)) * 100);
   const feasibilityScore = Math.round((countFilled(feasibilityFields) / feasibilityFields.length) * 100);
   const scenarioScore = Math.round((countFilled(scenarioFields) / scenarioFields.length) * 100);
   const regulatoryRisk = numericValue(realEstate.location.regulatoryRisk);
-  const score = Math.round(thesisScore * .2 + locationScore * .25 + feasibilityScore * .3 + scenarioScore * .25);
+  const score = Math.round(thesisScore * .35 + locationScore * .2 + feasibilityScore * .25 + scenarioScore * .2);
   const recommendation = score >= 75 && regulatoryRisk <= 3 ? "Investir" : score >= 50 ? "Ajustar tese" : "Não investir";
   const level = score >= 80 ? "Tese robusta" : score >= 60 ? "Tese promissora" : score >= 35 ? "Tese em revisão" : "Tese inicial";
-  return { score, level, recommendation, locationScore, feasibilityScore, scenarioScore, thesisScore, regulatoryRisk };
+  return { score, level, recommendation, locationScore, feasibilityScore, scenarioScore, thesisScore, regulatoryRisk, proposalScore, synthesisScore, metaSynthesis };
 }
 
 export function calculateQuality(input) {
@@ -169,6 +191,6 @@ export function calculateQuality(input) {
     memoFieldsComplete: total.memoFieldsComplete + report.indicators.memoFieldsComplete,
     memoFieldsTotal: total.memoFieldsTotal + report.indicators.memoFieldsTotal,
   }), { kitCompleted: 0, hypothesesComplete: 0, hypothesesTotal: 0, fcsComplete: 0, fcsTotal: 0, kiqsComplete: 0, kiqsTotal: 0, evidenceComplete: 0, evidenceTotal: 0, distinctSources: 0, memoFieldsComplete: 0, memoFieldsTotal: 0 });
-  const realEstate = calculateRealEstate(workspace.realEstate);
+  const realEstate = calculateRealEstate(workspace.realEstate, workspace.metaPlans, metaReports);
   return { score, level, progress, dimensions, strengths: dimensions.filter(item => item.score / item.max >= 0.75).map(item => item.label), priorities: dimensions.filter(item => item.score / item.max < 0.75).map(item => item.label), metaReports, analysis, realEstate };
 }
