@@ -1,5 +1,5 @@
-const blankKiq = () => ({ question: "", source: "", method: "", evidenceMinimum: "", decisionSignal: "" });
-const blankFactor = () => ({ title: "", rationale: "", indicator: "", hypothesisLink: "", interpretationRisk: "", kiqs: [blankKiq(), blankKiq(), blankKiq(), blankKiq()] });
+const blankKiq = () => ({ question: "", source: "", method: "", evidenceMinimum: "", decisionSignal: "", evaluability: "" });
+const blankFactor = () => ({ title: "", rationale: "", indicator: "", hypothesisLink: "", interpretationRisk: "", materiality: "", kiqs: [blankKiq(), blankKiq(), blankKiq(), blankKiq()] });
 const blankHypothesis = () => ({ statement: "", supportingSignal: "", weakeningSignal: "" });
 const blankEvidence = () => ({ evidence: "", source: "", date: "", relevance: "", limitation: "", inference: "" });
 const blankMemo = () => ({ recommendation: "", rationale: "", rejectedAlternatives: "", residualRisk: "", monitoringPlan: "" });
@@ -17,6 +17,7 @@ export const createEmptyMetaPlan = () => ({
   factors: [blankFactor(), blankFactor(), blankFactor(), blankFactor()],
   evidence: [blankEvidence(), blankEvidence(), blankEvidence()],
   kit: "",
+  kitDecisionFit: "",
   memo: blankMemo(),
 });
 
@@ -42,10 +43,10 @@ function normalizeMetaPlan(value) {
     const row = recordOf(item);
     const kiqs = arrayOf(row.kiqs).slice(0, 4).map(kiq => {
       const question = recordOf(kiq);
-      return { question: stringOf(question.question), source: stringOf(question.source), method: stringOf(question.method), evidenceMinimum: stringOf(question.evidenceMinimum), decisionSignal: stringOf(question.decisionSignal) };
+      return { question: stringOf(question.question), source: stringOf(question.source), method: stringOf(question.method), evidenceMinimum: stringOf(question.evidenceMinimum), decisionSignal: stringOf(question.decisionSignal), evaluability: stringOf(question.evaluability) };
     });
     while (kiqs.length < 4) kiqs.push(blankKiq());
-    return { title: stringOf(row.title), rationale: stringOf(row.rationale), indicator: stringOf(row.indicator), hypothesisLink: stringOf(row.hypothesisLink), interpretationRisk: stringOf(row.interpretationRisk), kiqs };
+    return { title: stringOf(row.title), rationale: stringOf(row.rationale), indicator: stringOf(row.indicator), hypothesisLink: stringOf(row.hypothesisLink), interpretationRisk: stringOf(row.interpretationRisk), materiality: stringOf(row.materiality), kiqs };
   });
   while (factors.length < 4) factors.push(blankFactor());
   const evidence = arrayOf(raw.evidence).slice(0, 3).map(item => {
@@ -56,6 +57,7 @@ function normalizeMetaPlan(value) {
   const memo = recordOf(raw.memo);
   return {
     kit: stringOf(raw.kit),
+    kitDecisionFit: stringOf(raw.kitDecisionFit),
     hypotheses: hypotheses.length ? hypotheses : template.hypotheses,
     factors: factors.length ? factors : template.factors,
     evidence: evidence.length ? evidence : template.evidence,
@@ -87,17 +89,46 @@ function normalizeRealEstate(value) {
 export function normalizeWorkspace(value) {
   const raw = recordOf(value);
   const plans = arrayOf(raw.metaPlans);
+  const feedback = recordOf(raw.aiFeedback);
+  const preserveFeedback = Object.keys(feedback).length ? { aiFeedback: feedback } : {};
   if (plans.length) {
     const normalized = plans.slice(0, 4).map(normalizeMetaPlan);
     while (normalized.length < 4) normalized.push(createEmptyMetaPlan());
-    return { metaPlans: normalized, realEstate: normalizeRealEstate(raw.realEstate) };
+    return { metaPlans: normalized, realEstate: normalizeRealEstate(raw.realEstate), ...preserveFeedback };
   }
-  return { metaPlans: [normalizeMetaPlan(raw), createEmptyMetaPlan(), createEmptyMetaPlan(), createEmptyMetaPlan()], realEstate: normalizeRealEstate(raw.realEstate) };
+  return { metaPlans: [normalizeMetaPlan(raw), createEmptyMetaPlan(), createEmptyMetaPlan(), createEmptyMetaPlan()], realEstate: normalizeRealEstate(raw.realEstate), ...preserveFeedback };
 }
 
 export function parseWorkspaceJson(value) {
   if (typeof value !== "string") return normalizeWorkspace(value);
   try { return normalizeWorkspace(JSON.parse(value)); } catch { return createEmptyWorkspace(); }
+}
+
+function assessmentValue(value) {
+  const parsed = Number.parseInt(String(value), 10);
+  return Number.isFinite(parsed) && parsed >= 1 && parsed <= 5 ? parsed : 0;
+}
+
+function calculateAssessment(plan) {
+  const kit = assessmentValue(plan.kitDecisionFit);
+  const factors = plan.factors.map(factor => assessmentValue(factor.materiality));
+  const kiqs = plan.factors.flatMap(factor => factor.kiqs.map(kiq => assessmentValue(kiq.evaluability)));
+  const values = [kit, ...factors, ...kiqs];
+  const evaluated = values.filter(Boolean);
+  const average = evaluated.length ? Math.round((evaluated.reduce((sum, item) => sum + item, 0) / evaluated.length) * 20) : 0;
+  const coverage = Math.round((evaluated.length / values.length) * 100);
+  return {
+    kit,
+    factors,
+    kiqs,
+    average,
+    coverage,
+    evaluatedItems: evaluated.length,
+    totalItems: values.length,
+    kitScore: kit * 20,
+    fcsScore: factors.length ? Math.round((factors.reduce((sum, item) => sum + item, 0) / (factors.length * 5)) * 100) : 0,
+    kiqScore: kiqs.length ? Math.round((kiqs.reduce((sum, item) => sum + item, 0) / (kiqs.length * 5)) * 100) : 0,
+  };
 }
 
 function calculateMetaQuality(plan, metaIndex) {
@@ -123,8 +154,9 @@ function calculateMetaQuality(plan, metaIndex) {
     { key: "evidence", label: "Evidências", score: evidenceScore, max: 25, explanation: "Fontes rastreáveis, limitações explícitas e triangulação." },
     { key: "memo", label: "Recomendação", score: memoScore, max: 15, explanation: "Síntese, trade-offs, risco residual e monitoramento." },
   ];
-  const indicators = { kitCompleted: kitScore === 20 ? 1 : 0, hypothesesComplete: completeHypotheses, hypothesesTotal: 3, fcsComplete: completeFactors, fcsTotal: 4, kiqsComplete: completeKiqs, kiqsTotal: 16, evidenceComplete: completeEvidence, evidenceTotal: 3, distinctSources, memoFieldsComplete: completeMemo, memoFieldsTotal: 5 };
-  return { metaIndex, score, level, progress, dimensions, strengths: dimensions.filter(item => item.score / item.max >= 0.75).map(item => item.label), priorities: dimensions.filter(item => item.score / item.max < 0.75).map(item => item.label), indicators };
+  const assessment = calculateAssessment(plan);
+  const indicators = { kitCompleted: kitScore === 20 ? 1 : 0, hypothesesComplete: completeHypotheses, hypothesesTotal: 3, fcsComplete: completeFactors, fcsTotal: 4, kiqsComplete: completeKiqs, kiqsTotal: 16, evidenceComplete: completeEvidence, evidenceTotal: 3, distinctSources, memoFieldsComplete: completeMemo, memoFieldsTotal: 5, evaluationAverage: assessment.average, evaluationCoverage: assessment.coverage, evaluatedItems: assessment.evaluatedItems, evaluationItemsTotal: assessment.totalItems };
+  return { metaIndex, score, level, progress, dimensions, strengths: dimensions.filter(item => item.score / item.max >= 0.75).map(item => item.label), priorities: dimensions.filter(item => item.score / item.max < 0.75).map(item => item.label), indicators, assessment };
 }
 
 function numericValue(value) {
@@ -190,7 +222,13 @@ export function calculateQuality(input) {
     distinctSources: total.distinctSources + report.indicators.distinctSources,
     memoFieldsComplete: total.memoFieldsComplete + report.indicators.memoFieldsComplete,
     memoFieldsTotal: total.memoFieldsTotal + report.indicators.memoFieldsTotal,
-  }), { kitCompleted: 0, hypothesesComplete: 0, hypothesesTotal: 0, fcsComplete: 0, fcsTotal: 0, kiqsComplete: 0, kiqsTotal: 0, evidenceComplete: 0, evidenceTotal: 0, distinctSources: 0, memoFieldsComplete: 0, memoFieldsTotal: 0 });
+    evaluationAverage: total.evaluationAverage + report.indicators.evaluationAverage,
+    evaluationCoverage: total.evaluationCoverage + report.indicators.evaluationCoverage,
+    evaluatedItems: total.evaluatedItems + report.indicators.evaluatedItems,
+    evaluationItemsTotal: total.evaluationItemsTotal + report.indicators.evaluationItemsTotal,
+  }), { kitCompleted: 0, hypothesesComplete: 0, hypothesesTotal: 0, fcsComplete: 0, fcsTotal: 0, kiqsComplete: 0, kiqsTotal: 0, evidenceComplete: 0, evidenceTotal: 0, distinctSources: 0, memoFieldsComplete: 0, memoFieldsTotal: 0, evaluationAverage: 0, evaluationCoverage: 0, evaluatedItems: 0, evaluationItemsTotal: 0 });
+  analysis.evaluationAverage = metaReports.length ? Math.round(analysis.evaluationAverage / metaReports.length) : 0;
+  analysis.evaluationCoverage = metaReports.length ? Math.round(analysis.evaluationCoverage / metaReports.length) : 0;
   const realEstate = calculateRealEstate(workspace.realEstate, workspace.metaPlans, metaReports);
   return { score, level, progress, dimensions, strengths: dimensions.filter(item => item.score / item.max >= 0.75).map(item => item.label), priorities: dimensions.filter(item => item.score / item.max < 0.75).map(item => item.label), metaReports, analysis, realEstate };
 }
