@@ -91,10 +91,12 @@ async function workspaceForGroup(admin: any, group: any) {
   const result = await admin.from("group_workspaces").select("*").eq("group_id", group.id).single();
   if (result.error) throw new Error(result.error.message);
   const workspace = result.data;
+  const document = normalizeWorkspace(workspace.document);
+  const metrics = calculateQuality(document);
   return {
     ...workspace,
-    document: normalizeWorkspace(workspace.document),
-    metrics: workspace.metrics ?? calculateQuality(workspace.document),
+    document,
+    metrics,
     lastSavedAt: workspace.last_saved_at,
     qualityScore: workspace.quality_score,
     qualityLevel: workspace.quality_level,
